@@ -14,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
-import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -60,13 +59,13 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
             }
             
             if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
-                return onError(exchange, "No authorization header", HttpStatus.UNAUTHORIZED);
+                return onError(exchange, "No authorization header");
             }
             String authorizationHeader =
                     request.getHeaders().get(HttpHeaders.AUTHORIZATION).get(0); 
             String jwt = authorizationHeader.replace("Bearer", "").trim();
             if (!isJwtValid(jwt)) {
-                return onError(exchange, "JWT token is not valid", HttpStatus.UNAUTHORIZED);
+                return onError(exchange, "JWT token is not valid");
             }
             return chain.filter(exchange);
         };
@@ -85,16 +84,13 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
         { returnValue = false; }
         return returnValue;
     }
-    private Mono<Void> onError(ServerWebExchange exchange, String err, HttpStatus httpStatus) {
-        // Criando um objeto de resposta com o status de erro e mensagem
+    private Mono<Void> onError(ServerWebExchange exchange, String err) {
         ServerHttpResponse response = exchange.getResponse();
-        response.setStatusCode(httpStatus);
+        response.setStatusCode(HttpStatus.UNAUTHORIZED);
 
-        // Você pode adicionar uma mensagem de erro no corpo da resposta, se necessário
         byte[] bytes = err.getBytes(StandardCharsets.UTF_8);
         DataBuffer buffer = response.bufferFactory().wrap(bytes);
 
-        // Retornando a resposta com o status de erro e mensagem
         return response.writeWith(Mono.just(buffer));
     }
 }
