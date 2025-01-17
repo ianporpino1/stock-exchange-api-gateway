@@ -9,10 +9,12 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -38,13 +40,23 @@ public class AuthorizationHeaderFilter extends AbstractGatewayFilterFactory<Auth
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
-
+            HttpMethod method = request.getMethod();
             String excludedRoutes = env.getProperty("gateway.excluded-routes");
-            List<String> excludedRoutesList = Arrays.asList(excludedRoutes.split(","));
-            System.out.println("Excluded routes: " + excludedRoutesList);
+            if (excludedRoutes != null && !excludedRoutes.isEmpty()) {
+                List<String> excludedRoutesList = Arrays.stream(excludedRoutes.split(","))
+                        .map(String::trim)
+                        .toList();
 
-            if (excludedRoutesList.contains(path)) {
-                return chain.filter(exchange);
+                System.out.println("Excluded routes: " + excludedRoutesList);
+                System.out.println("Route: " + path);
+
+                boolean isExcluded = excludedRoutesList.stream()
+                        .anyMatch(path::endsWith);
+                
+                if (isExcluded && method.equals(HttpMethod.POST)) {
+                    System.out.println("Path excluded from JWT check: " + path);
+                    return chain.filter(exchange);
+                }
             }
             
             if (!request.getHeaders().containsKey(HttpHeaders.AUTHORIZATION)) {
